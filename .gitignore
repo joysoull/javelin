@@ -1,0 +1,12 @@
+.env
+
+target/
+*.class
+maven-repository/
+
+.idea/
+*.iml
+.vscode/
+
+# Claude Code 本机权限/偏好（含个人绝对路径，不应提交）
+.claude/settings.local.json
