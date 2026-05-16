@@ -8,6 +8,7 @@ import com.javelin.config.ProviderFactory;
 import com.javelin.llm.LlmProvider;
 import com.javelin.tool.ToolRegistry;
 import com.javelin.tool.builtin.CalculatorTool;
+import com.javelin.tool.builtin.EditFileTool;
 import com.javelin.tool.builtin.GlobTool;
 import com.javelin.tool.builtin.GrepTool;
 import com.javelin.tool.builtin.ListDirTool;
@@ -69,6 +70,7 @@ public class Main {
                 .register(new CalculatorTool())
                 .register(new ReadFileTool())
                 .register(new WriteFileTool())
+                .register(new EditFileTool())
                 .register(new ListDirTool())
                 .register(new GrepTool())
                 .register(new GlobTool());
