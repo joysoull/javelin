@@ -64,7 +64,7 @@ public class PlanAndExecuteAgent {
 
         for (int round = 1; round <= MAX_REPLAN_ROUNDS; round++) {
             // ── 阶段 2: EXECUTE ──
-            listener.onPhase("开始执行计划 " + currentPlan.id());
+            listener.onPhase("🚀 开始执行计划 " + currentPlan.id());
             dagExecutor.execute(currentPlan, tools);
 
             boolean hasFailures = currentPlan.tasks().stream()
@@ -82,7 +82,7 @@ public class PlanAndExecuteAgent {
             }
 
             // ── 阶段 3: REPLAN ──
-            listener.onPhase("尝试修正失败步骤… 第 " + round + "/" + MAX_REPLAN_ROUNDS + " 轮");
+            listener.onPhase("🔁 尝试修正失败步骤… 第 " + round + "/" + MAX_REPLAN_ROUNDS + " 轮");
             ExecutionPlan revised = replan(userInput, currentPlan);
             if (revised == null || revised.isEmpty()) {
                 return formatSummary(currentPlan, true);
@@ -119,10 +119,10 @@ public class PlanAndExecuteAgent {
         }
         for (Task task : plan.tasks()) {
             String icon = switch (task.status()) {
-                case COMPLETED -> "[OK]";
-                case FAILED -> "[FAIL]";
-                case SKIPPED -> "[SKIP]";
-                default -> "[?]";
+                case COMPLETED -> "✅";
+                case FAILED -> "❌";
+                case SKIPPED -> "⏭️";
+                default -> "❓";
             };
             sb.append(icon).append(' ').append(task.stepId()).append(": ").append(task.toolName());
             if (!task.result().isEmpty()) {
@@ -132,7 +132,7 @@ public class PlanAndExecuteAgent {
             }
             sb.append('\n');
         }
-        sb.append("\n耗时: ").append(plan.elapsedMs()).append("ms");
+        sb.append("\n⏱️ 耗时: ").append(plan.elapsedMs()).append("ms");
         return sb.toString();
     }
 
@@ -140,18 +140,18 @@ public class PlanAndExecuteAgent {
      * 重规划：将失败结果发给 LLM，单次调用同时给出修正说明和生成修正计划。
      */
     private ExecutionPlan replan(String userInput, ExecutionPlan failedPlan) {
-        listener.onPhase("要求 LLM 修正失败步骤…");
+        listener.onPhase("🔧 要求 LLM 修正失败步骤…");
 
         StringBuilder sb = new StringBuilder();
         sb.append("原始目标: ").append(failedPlan.goal()).append('\n');
         for (Task task : failedPlan.tasks()) {
             String icon = switch (task.status()) {
-                case COMPLETED -> "OK";
-                case FAILED -> "FAIL";
-                case SKIPPED -> "SKIP";
-                default -> "??";
+                case COMPLETED -> "✅";
+                case FAILED -> "❌";
+                case SKIPPED -> "⏭️";
+                default -> "❓";
             };
-            sb.append("  [").append(icon).append("] ")
+            sb.append("  ").append(icon).append(" ")
                     .append(task.stepId()).append(": ")
                     .append(task.toolName()).append('\n');
             if (!task.result().isEmpty()) {

@@ -45,7 +45,10 @@ public class WriteFileTool implements Tool {
         String content = input.get("content").asText();
         try {
             Path path = Path.of(rawPath);
-            Files.createDirectories(path.getParent());
+            Path parent = path.getParent();
+            if (parent != null) {
+                Files.createDirectories(parent);
+            }
             Files.writeString(path, content);
             return "已写入: " + path.toAbsolutePath() + " (" + content.length() + " 字符)";
         } catch (IOException e) {

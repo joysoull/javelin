@@ -101,7 +101,7 @@ public class Main {
                 dotenv.getOrEnv("LLM_BASE_URL").orElse(null),
                 tools);
 
-        String prompt = Ansi.bold(Ansi.cyan("you")) + Ansi.gray(" › ");
+        String prompt = Ansi.bold(Ansi.cyan("你")) + Ansi.gray(" › ");
         while (running.get()) {
             String line;
             try {
@@ -134,9 +134,9 @@ public class Main {
                 detail.append("HTTP ").append(e.statusCode());
                 e.errorType().ifPresent(t -> detail.append("  type=").append(t));
                 detail.append('\n').append("body: ").append(e.body());
-                out.println(Box.render(Ansi.RED, "api error", Ansi.RED, detail.toString()));
+                out.println(Box.render(Ansi.RED, "⚠️ API 错误", Ansi.RED, detail.toString()));
             } catch (RuntimeException e) {
-                out.println(Box.render(Ansi.RED, "error", Ansi.RED, e.getMessage()));
+                out.println(Box.render(Ansi.RED, "⚠️ 错误", Ansi.RED, e.getMessage()));
             }
         }
     }
@@ -147,10 +147,10 @@ public class Main {
         out.println();
         out.println(Ansi.brightCyan("╭─" + title + "─".repeat(40)));
         out.println(Ansi.brightCyan("│ ") + Ansi.dim("一个学习用的 Claude-Code-like agent"));
-        out.println(Ansi.brightCyan("│ ") + Ansi.gray("provider: ") + providerName);
-        out.println(Ansi.brightCyan("│ ") + Ansi.gray("model:   ") + (modelId != null ? modelId : "auto"));
-        if (baseUrl != null) out.println(Ansi.brightCyan("│ ") + Ansi.gray("endpoint:") + baseUrl);
-        out.println(Ansi.brightCyan("│ ") + Ansi.gray("tools:   ") + countTools(tools));
+        out.println(Ansi.brightCyan("│ ") + Ansi.gray("⚡ 提供商: ") + providerName);
+        out.println(Ansi.brightCyan("│ ") + Ansi.gray("🤖 模型:   ") + (modelId != null ? modelId : "auto"));
+        if (baseUrl != null) out.println(Ansi.brightCyan("│ ") + Ansi.gray("🔗 端点:  ") + baseUrl);
+        out.println(Ansi.brightCyan("│ ") + Ansi.gray("🛠️ 工具:   ") + countTools(tools));
         out.println(Ansi.brightCyan("│ ") + Ansi.gray("/help 查看命令  ·  /exit 退出"));
         out.println(Ansi.brightCyan("╰─" + "─".repeat(title.length() + 41)));
         out.println();

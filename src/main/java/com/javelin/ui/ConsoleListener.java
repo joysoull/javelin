@@ -13,9 +13,15 @@ import java.io.PrintStream;
 public final class ConsoleListener implements AgentListener {
 
     private final PrintStream out;
+    private boolean showReasoning = false;
 
     public ConsoleListener(PrintStream out) {
         this.out = out;
+    }
+
+    /** 是否显示推理模型的思考过程，默认关闭以减少终端噪音 */
+    public void setShowReasoning(boolean show) {
+        this.showReasoning = show;
     }
 
     @Override
@@ -26,24 +32,25 @@ public final class ConsoleListener implements AgentListener {
 
     @Override
     public void onReasoning(String content) {
-        out.println(Box.render(Ansi.BRIGHT_BLACK, "思考过程", Ansi.DIM, content));
+        if (!showReasoning) return;
+        out.println(Box.render(Ansi.BRIGHT_BLACK, "🧠 思考过程", Ansi.DIM, content));
     }
 
     @Override
     public void onAssistantText(String text) {
         if (text.isEmpty()) return;
-        out.println(Box.render(Ansi.WHITE, "助手", null, MdAnsi.render(text)));
+        out.println(Box.render(Ansi.WHITE, "🤖 助手", null, MdAnsi.render(text)));
     }
 
     @Override
     public void onToolUse(String name, String useId, String argumentsJson) {
-        out.println(Box.render(Ansi.CYAN, "调用工具 · " + name, Ansi.DIM, argumentsJson));
+        out.println(Box.render(Ansi.CYAN, "🔧 调用工具 · " + name, Ansi.DIM, argumentsJson));
     }
 
     @Override
     public void onToolResult(String name, String useId, String output, boolean isError) {
         String style = isError ? Ansi.RED : Ansi.GREEN;
-        String tag = (isError ? "工具错误" : "工具结果") + " · " + name;
+        String tag = (isError ? "❌ 工具错误" : "✅ 工具结果") + " · " + name;
         out.println(Box.render(style, tag, null, output));
     }
 }

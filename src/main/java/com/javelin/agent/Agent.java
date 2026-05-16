@@ -77,7 +77,7 @@ public class Agent {
 
         for (int iter = 1; iter <= MAX_ITERATIONS; iter++) {
             // 阶段标签：第一轮是首次思考，后续是 LLM 看到工具结果后的再思考
-            String phase = iter == 1 ? "思考中…" : "整合工具结果…";
+            String phase = iter == 1 ? "🧠 思考中…" : "🔄 整合工具结果…";
             listener.onPhase(phase);
 
             // 1. 调用 LLM，传入完整消息历史、工具定义、系统提示词
@@ -110,8 +110,8 @@ public class Agent {
             return assistantText;
         }
 
-        throw new RuntimeException("Agent exceeded MAX_ITERATIONS=" + MAX_ITERATIONS
-                + "，怀疑陷入死循环。检查工具实现或提示词。");
+        throw new RuntimeException("Agent 超过最大迭代次数 MAX_ITERATIONS=" + MAX_ITERATIONS
+                + "，怀疑陷入死循环。请检查工具实现或提示词。");
     }
 
     /**
@@ -126,7 +126,7 @@ public class Agent {
     private LlmMessage.ToolResultBlock runTool(ToolCall tc) {
         com.javelin.tool.Tool tool = tools.get(tc.name());
         if (tool == null) {
-            String msg = "error: unknown tool '" + tc.name() + "'";
+            String msg = "❌ 错误：未知工具 '" + tc.name() + "'";
             listener.onToolResult(tc.name(), tc.id(), msg, true);
             return new LlmMessage.ToolResultBlock(tc.id(), msg, true);
         }

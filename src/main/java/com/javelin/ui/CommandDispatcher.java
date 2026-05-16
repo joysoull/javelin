@@ -35,7 +35,7 @@ public final class CommandDispatcher {
     public boolean dispatch(String line) {
         switch (line) {
             case "/exit", "/quit" -> {
-                out.println(Ansi.gray("bye."));
+                out.println(Ansi.gray("👋 再见"));
                 onExit.run();
                 return true;
             }
@@ -45,12 +45,12 @@ public final class CommandDispatcher {
             }
             case "/tools" -> printTools();
             case "/help" -> printHelp();
-            case "/mode" -> out.println(Ansi.gray("当前模式未知。使用 /mode react 或 /mode plan 切换。"));
+            case "/mode" -> out.println(Ansi.gray("ℹ️  当前模式未知。使用 /mode react 或 /mode plan 切换。"));
             default -> {
                 if (line.startsWith("/mode ")) {
                     handleMode(line.substring(6).trim().toLowerCase());
                 } else {
-                    out.println(Ansi.red("未知命令: " + line + "  （试试 /help）"));
+                    out.println(Ansi.red("❓ 未知命令: " + line + "  （试试 /help）"));
                 }
             }
         }
@@ -63,11 +63,11 @@ public final class CommandDispatcher {
             sb.append(Ansi.bold(t.name())).append('\n');
             sb.append(Ansi.gray("  " + t.description())).append('\n');
         }
-        out.println(Box.render(Ansi.CYAN, "tools", null, sb.toString().stripTrailing()));
+        out.println(Box.render(Ansi.CYAN, "🛠️ 工具列表", null, sb.toString().stripTrailing()));
     }
 
     private void printHelp() {
-        out.println(Box.render(Ansi.CYAN, "help", null, """
+        out.println(Box.render(Ansi.CYAN, "❓ 帮助", null, """
                 /help    帮助
                 /tools   列出工具
                 /mode    切换模式 (react / plan)
@@ -79,9 +79,9 @@ public final class CommandDispatcher {
     private void handleMode(String target) {
         if ("react".equals(target) || "plan".equals(target)) {
             modeSetter.accept(target);
-            out.println(Ansi.green("已切换到 " + target + " 模式"));
+            out.println(Ansi.green("✅ 已切换到 " + target + " 模式"));
         } else {
-            out.println(Ansi.red("未知模式: " + target + "，可用: react / plan"));
+            out.println(Ansi.red("❌ 未知模式: " + target + "，可用: react / plan"));
         }
     }
 }

@@ -25,12 +25,43 @@ public class Planner {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
-    /** 规划阶段的系统指令，追加到原有 systemPrompt 前面 */
+    /** 规划阶段的系统指令 */
     private static final String PLAN_INSTRUCTION = """
-            你是计划制定者。收到用户需求后，你必须调用 create_plan 工具提交一个完整的执行计划。
+            【角色】你是计划制定者。收到用户需求后，你必须调用 create_plan 工具提交一个完整的执行计划。
             不要直接回答用户的问题，不要执行任何操作——只生成计划。
-            计划中的每个步骤使用下面列出的可用工具，步骤之间用 depends_on 声明依赖关系。
-            如果需求简单，一个步骤也可以，但仍需提交计划。
+
+            【规则】
+            1. 每个步骤必须使用下面列出的可用工具，不得编造不存在的工具。
+            2. 步骤之间用 depends_on 声明依赖关系。
+               depends_on 的含义：当前步骤需要等待哪些前置步骤完成后才能开始。
+               例如步骤 B 的 depends_on 是 ["A"]，表示 B 必须等 A 完成后才能执行。
+            3. arguments 必须是合法的 JSON object，键名与工具参数一致。
+            4. 如果需求简单，一个步骤也可以，但仍需提交计划。
+            5. 如果用户的需求无法用可用工具完成，不要编造工具，仍调用 create_plan，steps 留空，goal 说明原因。
+
+            【示例】
+            用户需求：读取 hello.txt 并在末尾追加一行 "world"
+            计划：
+            {
+              "goal": "读取 hello.txt 并在末尾追加 world",
+              "steps": [
+                {
+                  "type": "FILE_READ",
+                  "id": "1",
+                  "description": "读取 hello.txt 当前内容",
+                  "tool": "read_file",
+                  "arguments": {"file_path": "hello.txt"}
+                },
+                {
+                  "type": "FILE_WRITE",
+                  "id": "2",
+                  "description": "追加 world 到文件末尾",
+                  "tool": "write_file",
+                  "arguments": {"file_path": "hello.txt", "content": "原内容\\nworld"},
+                  "depends_on": ["1"]
+                }
+              ]
+            }
             """;
 
     private final LlmProvider llm;
@@ -55,21 +86,41 @@ public class Planner {
         this.toolDefs = List.of(new ToolDef(
                 createPlan.name(), createPlan.description(), createPlan.inputSchema().toString()));
 
-        // 从执行工具注册表提取清单（含参数名），嵌入 prompt 告知 LLM
+        // 从执行工具注册表提取清单（含参数类型、必填、描述），嵌入 prompt 告知 LLM
         this.toolSummary = executionTools.all().stream()
                 .map(t -> {
                     StringBuilder sb = new StringBuilder();
                     sb.append("  ").append(t.name()).append(" — ").append(t.description());
-                    // 提取 required 参数名
                     JsonNode schema = t.inputSchema();
-                    if (schema != null && schema.has("required")) {
+                    if (schema != null && schema.has("properties")) {
+                        JsonNode props = schema.get("properties");
                         JsonNode required = schema.get("required");
-                        if (required.isArray() && required.size() > 0) {
-                            sb.append("  参数: ");
-                            for (JsonNode r : required) {
-                                sb.append(r.asText()).append(", ");
+                        if (props.isObject() && props.size() > 0) {
+                            sb.append("  参数:");
+                            var it = props.fields();
+                            while (it.hasNext()) {
+                                var entry = it.next();
+                                String paramName = entry.getKey();
+                                JsonNode paramSchema = entry.getValue();
+                                String paramType = paramSchema.has("type") ? paramSchema.get("type").asText("any") : "any";
+                                String paramDesc = paramSchema.has("description") ? paramSchema.get("description").asText("") : "";
+                                boolean isRequired = false;
+                                if (required != null && required.isArray()) {
+                                    for (JsonNode n : required) {
+                                        if (paramName.equals(n.asText())) {
+                                            isRequired = true;
+                                            break;
+                                        }
+                                    }
+                                }
+                                sb.append("\n    - ").append(paramName)
+                                  .append("(").append(paramType)
+                                  .append(isRequired ? ", 必填" : ", 可选")
+                                  .append(")");
+                                if (!paramDesc.isEmpty()) {
+                                    sb.append(" — ").append(paramDesc);
+                                }
                             }
-                            sb.setLength(sb.length() - 2); // 去掉末尾逗号空格
                         }
                     }
                     return sb.toString();
@@ -94,10 +145,14 @@ public class Planner {
         List<LlmMessage> history = new ArrayList<>();
         history.add(LlmMessage.user(prompt));
 
-        // 规划指令 + 原有系统提示词
-        String planningPrompt = (systemPrompt != null && !systemPrompt.isBlank())
-                ? PLAN_INSTRUCTION + "\n" + systemPrompt
-                : PLAN_INSTRUCTION;
+        // 规划指令 + 原有系统提示词：通用角色在前，当前任务（规划）在后，
+        // 因为 LLM 对 prompt 末尾的内容通常更敏感
+        String planningPrompt;
+        if (systemPrompt != null && !systemPrompt.isBlank()) {
+            planningPrompt = "[通用角色]\n" + systemPrompt + "\n\n[当前任务——制定执行计划]\n" + PLAN_INSTRUCTION;
+        } else {
+            planningPrompt = PLAN_INSTRUCTION;
+        }
 
         LlmResponse resp = llm.chat(history, toolDefs, planningPrompt);
 
