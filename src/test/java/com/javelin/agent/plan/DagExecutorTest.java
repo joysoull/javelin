@@ -3,7 +3,7 @@ package com.javelin.agent.plan;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.javelin.agent.Agent;
+import com.javelin.agent.AgentListener;
 import com.javelin.tool.Tool;
 import com.javelin.tool.ToolRegistry;
 import org.junit.jupiter.api.BeforeEach;
@@ -183,7 +183,7 @@ class DagExecutorTest {
     // ── helpers ──
 
     private void execute(ExecutionPlan plan) {
-        new DagExecutor(Agent.Listener.NOOP).execute(plan, tools);
+        new DagExecutor(AgentListener.NOOP).execute(plan, tools);
     }
 
     private Task task(String id, List<String> deps) {

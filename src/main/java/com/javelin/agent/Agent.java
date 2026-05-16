@@ -35,7 +35,7 @@ public class Agent {
     private final LlmProvider llm;
     private final ToolRegistry tools;
     private final String systemPrompt;
-    private final Listener listener;
+    private final AgentListener listener;
 
     /**
      * @param llm          LLM Provider，负责与具体 API 通信
@@ -43,11 +43,11 @@ public class Agent {
      * @param systemPrompt 系统提示词，可为 null
      * @param listener     观察者，用于将 ReAct 每一步输出到 UI；为 null 时静默运行
      */
-    public Agent(LlmProvider llm, ToolRegistry tools, String systemPrompt, Listener listener) {
+    public Agent(LlmProvider llm, ToolRegistry tools, String systemPrompt, AgentListener listener) {
         this.llm = llm;
         this.tools = tools;
         this.systemPrompt = systemPrompt;
-        this.listener = listener != null ? listener : Listener.NOOP;
+        this.listener = listener != null ? listener : AgentListener.NOOP;
     }
 
     /**
@@ -144,24 +144,10 @@ public class Agent {
 
     /**
      * ReAct 循环的观察者，让 REPL 层能把每一步渲染到终端。
-     * 所有方法都是 default 空实现，调用方按需 override。
+     *
+     * 保留在 Agent 内部以兼容既有代码；新代码建议直接使用 {@link AgentListener}。
      */
-    public interface Listener {
+    public interface Listener extends AgentListener {
         Listener NOOP = new Listener() {};
-
-        /** LLM 调用开始时的阶段描述：首轮为"思考中…"，后续为"整合工具结果…" */
-        default void onPhase(String label) {}
-
-        /** 推理模型返回的思考过程（DeepSeek reasoning_content 等） */
-        default void onReasoning(String content) {}
-
-        /** LLM 在发起工具调用的同时返回了文本（非最终回复） */
-        default void onAssistantText(String text) {}
-
-        /** LLM 发起了一个工具调用 */
-        default void onToolUse(String name, String useId, String argumentsJson) {}
-
-        /** 工具执行完毕 */
-        default void onToolResult(String name, String useId, String output, boolean isError) {}
     }
 }

@@ -12,20 +12,20 @@ Plan and Execute 的核心思想：**LLM 一次性想好全部步骤，系统按
 ```
 用户输入
   ↓
-┌─ PLAN   ── 单次 LLM 调用，LLM 调用 create_plan 工具提交计划
-├─ EXECUTE── DagExecutor 按 DAG 拓扑序并行执行所有步骤
-└─ REVIEW ── LLM 审阅结果。如有失败，重规划（最多 3 轮）
+┌─ PLAN    ── 单次 LLM 调用，LLM 调用 create_plan 工具提交计划
+├─ EXECUTE ── DagExecutor 按 DAG 拓扑序并行执行所有步骤
+└─ REPLAN  ── 如有失败，LLM 同时给出修正说明 + 新计划（最多 3 轮）
   ↓
-最终输出
+最终输出（全部成功时模板汇总，不再调 LLM 做纯总结）
 ```
 
 ## 2. 架构分层
 
 ```
 ┌──────────────────────────────────────────┐
-│  Main.java         REPL 入口              │  ← /mode plan 切换到 Plan 模式
+│  Main.java              REPL 入口         │  ← /mode plan 切换，只负责组装与启动
 ├──────────────────────────────────────────┤
-│  PlanAndExecuteAgent.java   编排层        │  ← Plan → Execute → Review 三阶段
+│  PlanAndExecuteAgent.java   编排层        │  ← Plan → Execute → Replan（失败时）
 ├──────────────────────────────────────────┤
 │  Planner.java        规划器               │  ← 单次 LLM 调用 → create_plan → ExecutionPlan
 ├──────────────────────────────────────────┤
@@ -34,6 +34,12 @@ Plan and Execute 的核心思想：**LLM 一次性想好全部步骤，系统按
 │  ExecutionPlan.java   计划容器            │  ← goal + tasks + executionOrder + 生命周期
 ├──────────────────────────────────────────┤
 │  Task.java            执行单元            │  ← Type + Status 枚举 + 状态转换方法
+├──────────────────────────────────────────┤
+│  AgentListener.java   观察者接口          │  ← 供 Agent / PlanAndExecuteAgent / DagExecutor 共用
+├──────────────────────────────────────────┤
+│  ConsoleListener.java 终端渲染            │  ← AgentListener 的 ANSI 实现
+│  CommandDispatcher.java 命令分发          │  ← /help /mode /tools 等斜杠命令
+│  ProviderFactory.java Provider 工厂       │  ← 根据 .env 创建 Anthropic / OpenAI Provider
 └──────────────────────────────────────────┘
 ```
 
@@ -240,7 +246,7 @@ ExecutorService executor = Executors.newFixedThreadPool(4, r -> {
 
 ## 7. PlanAndExecuteAgent：编排层
 
-三阶段流程的完整实现：
+精简后的两阶段流程（成功时不再调 LLM 做纯总结）：
 
 ```java
 public String chat(String userInput) {
@@ -252,12 +258,10 @@ public String chat(String userInput) {
         // 阶段 2: EXECUTE
         dagExecutor.execute(plan, tools);
 
-        // 阶段 3: REVIEW
-        review(userInput, plan);
+        if (全部成功) return formatSummary(plan);   // 模板汇总，不调 LLM
+        if (最后一轮) return formatSummary(plan);   // 返回失败汇总
 
-        if (全部成功 || 最后一轮) return "";
-
-        // 失败 → 重规划
+        // 失败 → 重规划（LLM 同时给出修正说明 + 新计划）
         plan = replan(userInput, plan);
     }
 }
@@ -267,7 +271,9 @@ public String chat(String userInput) {
 
 ### 重规划（replan）
 
-与初次规划不同，重规划是单次 LLM 调用——不给探索机会，LLM 收到失败汇总后直接调 create_plan 提交修正方案。
+与初次规划不同，重规划是单次 LLM 调用——不给探索机会。prompt 要求 LLM **先说明修正思路，再调用 create_plan 提交修正方案**。`replan()` 会把 LLM 的解释文本通过 `listener.onAssistantText()` 展示给用户，然后解析 `create_plan` 工具调用得到新计划。
+
+这样失败场景下只需 **1 次 LLM 调用**（原实现需要 review 1 次 + replan 1 次 = 2 次）。
 
 ## 8. create_plan 工具
 
@@ -310,7 +316,7 @@ inputSchema 的完整结构：
 |---|---|
 | 计划预览 | 执行前展示所有步骤及依赖关系 |
 | 步骤进度 | 阶段标签显示步骤 ID（`执行 step_1, step_2`）而非模糊的"并行执行 N 个" |
-| 去重 | Plan 模式 review 已在 `<助手>` 展示，不再重复渲染 `<回答>` Box |
+| 去重 | Plan 模式 replan 的修正说明通过 `<助手>` 展示，最终汇总通过 `<回答>` Box 渲染 |
 
 ## 10. 测试
 
@@ -349,9 +355,10 @@ D:\javelin\
 │   └── javelin-tutorial-phase2.md            ← 第二期教程
 └── src/
     ├── main/java/com/javelin/
-    │   ├── Main.java                         新增 /mode 命令
+    │   ├── Main.java                         精简为组装与启动，/mode 命令保留
     │   ├── agent/
     │   │   ├── Agent.java                    ReAct Agent（未修改）
+    │   │   ├── AgentListener.java            ← 独立观察者接口（从 Agent 内部提升）
     │   │   └── PlanAndExecuteAgent.java      ← Plan & Execute 编排层
     │   ├── llm/                              （第一期，未修改）
     │   ├── tool/
@@ -359,8 +366,13 @@ D:\javelin\
     │   │   └── builtin/
     │   │       ├── CalculatorTool.java ...    （第一期，未修改）
     │   │       └── CreatePlanTool.java        ← 计划提交工具
-    │   ├── config/                           （第一期，未修改）
-    │   └── ui/                               （第一期，未修改）
+    │   ├── config/
+    │   │   ├── DotEnv.java                   （第一期，未修改）
+    │   │   └── ProviderFactory.java          ← 从 Main 提取的 Provider 工厂
+    │   └── ui/
+    │       ├── Ansi.java / Box.java / MdAnsi.java  （第一期，未修改）
+    │       ├── ConsoleListener.java          ← 从 Main 提取的终端渲染实现
+    │       └── CommandDispatcher.java        ← 从 Main 提取的斜杠命令分发
     └── test/java/com/javelin/agent/plan/     ← 测试
         ├── TaskTest.java
         ├── ExecutionPlanTest.java
@@ -368,4 +380,4 @@ D:\javelin\
         └── DagExecutorTest.java
 ```
 
-新增 10 个源文件，修改 2 个（pom.xml, Main.java），0 个删除。第一期 ReAct Agent 零侵入。
+新增 10 个源文件，修改 3 个（pom.xml、Main.java、Agent.java 兼容调整），0 个删除。第一期 ReAct Agent 的内部 `Listener` 接口保留并继承新 `AgentListener`，既有代码零破坏。

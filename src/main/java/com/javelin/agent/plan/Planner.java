@@ -3,7 +3,7 @@ package com.javelin.agent.plan;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.javelin.agent.Agent;
+import com.javelin.agent.AgentListener;
 import com.javelin.llm.*;
 import com.javelin.tool.ToolRegistry;
 import com.javelin.tool.builtin.CreatePlanTool;
@@ -37,7 +37,7 @@ public class Planner {
     private final List<ToolDef> toolDefs;
     private final String systemPrompt;
     private final String toolSummary;
-    private final Agent.Listener listener;
+    private final AgentListener listener;
 
     /**
      * @param llm            LLM Provider
@@ -45,10 +45,10 @@ public class Planner {
      * @param systemPrompt   系统提示词，可为 null
      * @param listener       观察者，为 null 时静默运行
      */
-    public Planner(LlmProvider llm, ToolRegistry executionTools, String systemPrompt, Agent.Listener listener) {
+    public Planner(LlmProvider llm, ToolRegistry executionTools, String systemPrompt, AgentListener listener) {
         this.llm = llm;
         this.systemPrompt = systemPrompt;
-        this.listener = listener != null ? listener : Agent.Listener.NOOP;
+        this.listener = listener != null ? listener : AgentListener.NOOP;
 
         // 只注册 create_plan 为可调用工具
         CreatePlanTool createPlan = new CreatePlanTool();

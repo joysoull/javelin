@@ -269,7 +269,7 @@ JLine 的 `LineReader` 提供行编辑、历史、Tab 补全。斜杠命令（`/
 
 ### 8.3 ReAct 过程的可视化
 
-`Agent.Listener` 接口有 5 个回调：`onPhase`、`onReasoning`、`onAssistantText`、`onToolUse`、`onToolResult`。`ConsoleListener` 把它们渲染为 ANSI 着色的 Box，让用户肉眼看到每一步。
+`AgentListener` 接口有 5 个回调：`onPhase`、`onReasoning`、`onAssistantText`、`onToolUse`、`onToolResult`。`ConsoleListener`（位于 `ui` 包）把它们渲染为 ANSI 着色的 Box，让用户肉眼看到每一步。
 
 ### 8.4 与 Claude Code UI 的差距
 
@@ -297,9 +297,10 @@ D:\javelin\
 ├── docs/
 │   └── javelin-source.md        源码合集（机器生成）
 └── src/main/java/com/javelin/
-    ├── Main.java                REPL 入口、Provider 选择、ConsoleListener
+    ├── Main.java                REPL 入口、依赖组装
     ├── agent/
-    │   └── Agent.java           ReAct 主循环 ★
+    │   ├── Agent.java           ReAct 主循环 ★
+    │   └── AgentListener.java   ReAct / Plan-Execute 观察者接口
     ├── llm/
     │   ├── LlmProvider.java     接口
     │   ├── LlmMessage.java      中性消息
@@ -320,9 +321,12 @@ D:\javelin\
     │       ├── GrepTool.java        内容搜索
     │       └── GlobTool.java        文件名匹配
     ├── config/
-    │   └── DotEnv.java          .env 加载器
+    │   ├── DotEnv.java          .env 加载器
+    │   └── ProviderFactory.java 根据配置创建 LlmProvider
     └── ui/
-        ├── Ansi.java            ANSI 颜色
-        ├── Box.java             圆角框渲染
-        └── MdAnsi.java          Markdown→ANSI
+        ├── Ansi.java              ANSI 颜色
+        ├── Box.java               圆角框渲染
+        ├── MdAnsi.java            Markdown→ANSI
+        ├── ConsoleListener.java   AgentListener 的终端渲染实现
+        └── CommandDispatcher.java 斜杠命令分发
 ```

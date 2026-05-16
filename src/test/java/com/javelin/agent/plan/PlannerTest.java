@@ -1,6 +1,6 @@
 package com.javelin.agent.plan;
 
-import com.javelin.agent.Agent;
+import com.javelin.agent.AgentListener;
 import com.javelin.llm.ToolCall;
 import com.javelin.tool.ToolRegistry;
 import org.junit.jupiter.api.Test;
@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class PlannerTest {
 
-    private final Planner planner = new Planner(null, new ToolRegistry(), null, Agent.Listener.NOOP);
+    private final Planner planner = new Planner(null, new ToolRegistry(), null, AgentListener.NOOP);
 
     @Test
     void parseValidPlanReturnsExecutionPlan() {

@@ -1,7 +1,7 @@
 package com.javelin.agent.plan;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.javelin.agent.Agent;
+import com.javelin.agent.AgentListener;
 import com.javelin.tool.Tool;
 import com.javelin.tool.ToolRegistry;
 
@@ -18,18 +18,18 @@ import java.util.concurrent.*;
 public class DagExecutor {
 
     private final ExecutorService executor;
-    private final Agent.Listener listener;
+    private final AgentListener listener;
 
     /**
      * @param listener 用于输出每个步骤的执行进度
      */
-    public DagExecutor(Agent.Listener listener) {
+    public DagExecutor(AgentListener listener) {
         this.executor = Executors.newFixedThreadPool(4, r -> {
             Thread t = new Thread(r, "dag-executor");
             t.setDaemon(true);
             return t;
         });
-        this.listener = listener != null ? listener : Agent.Listener.NOOP;
+        this.listener = listener != null ? listener : AgentListener.NOOP;
     }
 
     /**

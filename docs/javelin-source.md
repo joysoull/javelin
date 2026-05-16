@@ -199,7 +199,8 @@ public class Main {
         return names.toString();
     }
 
-    static class ConsoleListener implements Agent.Listener {
+    // 注意：ConsoleListener 已提取到 ui/ConsoleListener.java，实现 AgentListener 接口
+    static class ConsoleListener implements AgentListener {
         private final PrintStream out;
         ConsoleListener(PrintStream out) { this.out = out; }
 
