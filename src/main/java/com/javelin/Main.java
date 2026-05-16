@@ -2,6 +2,7 @@ package com.javelin;
 
 import com.anthropic.errors.AnthropicServiceException;
 import com.javelin.agent.Agent;
+import com.javelin.agent.PlanAndExecuteAgent;
 import com.javelin.config.DotEnv;
 import com.javelin.llm.LlmProvider;
 import com.javelin.llm.impl.AnthropicProvider;
@@ -89,7 +90,12 @@ public class Main {
                 .register(new ListDirTool())
                 .register(new GrepTool())
                 .register(new GlobTool());
-        Agent agent = new Agent(llm, tools, SYSTEM_PROMPT, new ConsoleListener(out));
+        ConsoleListener console = new ConsoleListener(out);
+        Agent reactAgent = new Agent(llm, tools, SYSTEM_PROMPT, console);
+        PlanAndExecuteAgent planAgent = new PlanAndExecuteAgent(llm, tools, SYSTEM_PROMPT, console);
+
+        // 当前运行模式：react 或 plan，默认 react
+        String[] mode = { "react" };
 
         // ── JLine 终端 + 行读取器 ──
         Terminal terminal = TerminalBuilder.builder()
@@ -98,7 +104,7 @@ public class Main {
                 .build();
         LineReader reader = LineReaderBuilder.builder()
                 .terminal(terminal)
-                .completer(new StringsCompleter("/help", "/tools", "/clear", "/exit"))
+                .completer(new StringsCompleter("/help", "/tools", "/mode", "/clear", "/exit"))
                 .build();
 
         printBanner(out, llm.getClass().getSimpleName(), modelId, baseUrl, tools);
@@ -118,14 +124,18 @@ public class Main {
             if (line.isEmpty()) continue;
 
             if (line.startsWith("/")) {
-                if (handleSlash(out, line, tools)) return;
+                if (handleSlash(out, line, tools, mode)) return;
                 continue;
             }
 
             try {
-                String reply = agent.chat(line);
-                out.println();
-                out.println(Box.render(Ansi.GREEN, "回答", null, MdAnsi.render(reply)));
+                String reply = "plan".equals(mode[0])
+                        ? planAgent.chat(line)
+                        : reactAgent.chat(line);
+                if (!reply.isEmpty()) {
+                    out.println();
+                    out.println(Box.render(Ansi.GREEN, "回答", null, MdAnsi.render(reply)));
+                }
             } catch (AnthropicServiceException e) {
                 StringBuilder detail = new StringBuilder();
                 detail.append("HTTP ").append(e.statusCode());
@@ -138,7 +148,7 @@ public class Main {
         }
     }
 
-    private static boolean handleSlash(PrintStream out, String line, ToolRegistry tools) {
+    private static boolean handleSlash(PrintStream out, String line, ToolRegistry tools, String[] mode) {
         switch (line) {
             case "/exit", "/quit" -> { out.println(Ansi.gray("bye.")); return true; }
             case "/clear" -> {
@@ -155,10 +165,26 @@ public class Main {
             case "/help" -> out.println(Box.render(Ansi.CYAN, "help", null, """
                     /help    帮助
                     /tools   列出工具
+                    /mode    切换模式 (react / plan)
                     /clear   清屏
                     /exit    退出
                     快捷键：↑↓ 翻历史  Ctrl+A/E 行首/行尾  Ctrl+D 退出"""));
-            default -> out.println(Ansi.red("未知命令: " + line + "  （试试 /help）"));
+            case "/mode" -> {
+                out.println(Ansi.gray("当前模式: " + mode[0] + "。使用 /mode react 或 /mode plan 切换。"));
+            }
+            default -> {
+                if (line.startsWith("/mode ")) {
+                    String target = line.substring(6).trim().toLowerCase();
+                    if ("react".equals(target) || "plan".equals(target)) {
+                        mode[0] = target;
+                        out.println(Ansi.green("已切换到 " + target + " 模式"));
+                    } else {
+                        out.println(Ansi.red("未知模式: " + target + "，可用: react / plan"));
+                    }
+                } else {
+                    out.println(Ansi.red("未知命令: " + line + "  （试试 /help）"));
+                }
+            }
         }
         return false;
     }
